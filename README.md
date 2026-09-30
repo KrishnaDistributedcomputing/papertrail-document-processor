@@ -10,7 +10,8 @@ keywords:
   - Docker
   - FastAPI
   - SQLite
-estimated_reading_time: 4
+  - Azure VM
+estimated_reading_time: 5
 ---
 
 ## Overview
@@ -18,11 +19,12 @@ estimated_reading_time: 4
 Papertrail turns native or scanned PDF documents into structured JSON. It uses
 PyMuPDF for layout-aware native text extraction and Tesseract OCR when a page
 does not contain enough usable text. It classifies each result as an invoice,
-receipt, contract, report, resume, letter, form, or other document. A local
-Selectable Qwen2.5 models summarize extracted content and identify key points,
-entities, and action items. Selecting both models produces side-by-side output,
-runtime, token, and confidence comparisons. SQLite retains run history, key
-metadata, and complete results. Documents and prompts remain inside Docker.
+receipt, contract, report, resume, letter, form, or other document. Selectable
+local Qwen2.5, Llama 3.2, and Gemma 3 models summarize extracted content
+and identify key points, entities, and action items. Selecting up to two models
+produces side-by-side output, runtime, token, and confidence comparisons. SQLite
+retains run history, key metadata, and complete results. Documents and prompts
+remain inside Docker.
 
 ## Start with one command
 
@@ -50,8 +52,18 @@ source otherwise. It waits for every service to become healthy and then opens
 <http://localhost:8081>. Running the same command again is safe and preserves
 all documents, results, history, and downloaded models.
 
-The first start downloads the Qwen2.5 1.5B and 0.5B models. Allow several
-minutes and about 10 GB of free disk space for images, models, and runtime data.
+The first start downloads five local models. Allow several minutes and about
+15 GB of free disk space for images, models, and runtime data.
+
+## Host on Azure
+
+The supported Azure hosting path uses one Ubuntu VM so Docker Compose, local
+Ollama inference, SQLite, Redis, and persistent volumes retain their existing
+runtime behavior. The deployment guide includes Azure CLI resource creation,
+VM sizing, managed identity permissions, Blob Storage configuration, secure
+access, health checks, and production network guidance.
+
+Follow [Host on Azure](DEPLOYMENT.md#host-on-azure) for the complete setup.
 
 ## Application previews
 
@@ -189,22 +201,26 @@ $env:PAPERTRAIL_DOCUMENT_VOLUME = "papertrail_document-data-restored"
 docker compose up --detach --wait
 ```
 
-## Open-source models
+## Local models
 
 The `models` directory contains official Tesseract `tessdata_best` files:
 
-| Model             | Purpose                       | Size    | License    |
-|-------------------|-------------------------------|---------|------------|
-| `eng.traineddata` | English text recognition      | 15.4 MB | Apache-2.0 |
-| `osd.traineddata` | Orientation and script detect | 10.6 MB | Apache-2.0 |
-| `qwen2.5:1.5b`    | Structured document analysis  | 986 MB  | Apache-2.0 |
-| `qwen2.5:0.5b`    | Fast comparison analysis      | 397 MB  | Apache-2.0 |
+| Model             | Purpose                           | Size    | License                     |
+|-------------------|-----------------------------------|---------|-----------------------------|
+| `eng.traineddata` | English text recognition          | 15.4 MB | Apache-2.0                  |
+| `osd.traineddata` | Orientation and script detection  | 10.6 MB | Apache-2.0                  |
+| `qwen2.5:1.5b`    | Structured document analysis      | 986 MB  | Apache-2.0                  |
+| `qwen2.5:0.5b`    | Fast comparison analysis          | 397 MB  | Apache-2.0                  |
+| `qwen2.5:3b`      | Higher-detail JSON analysis       | 1.9 GB  | Qwen license                |
+| `llama3.2:3b`     | Multilingual instruction following | 2.0 GB  | Llama 3.2 Community License |
+| `gemma3:1b`       | Compact multilingual summaries    | 815 MB  | Gemma Terms of Use          |
 
 The verified downloader uses the official
 [tessdata_best repository](https://github.com/tesseract-ocr/tessdata_best).
 These models run locally on CPU and do not require a cloud account or GPU.
-Ollama downloads both Qwen models only through the one-shot bootstrap network. The running
-inference service has no published port and remains on the internal network.
+Ollama downloads all five language models only through the one-shot bootstrap
+network. The running inference service has no published port and remains on the
+internal network.
 
 ## Validate the solution
 
@@ -237,7 +253,7 @@ Environment variables can be added under the `api` and `worker` services in
 | `MAX_BATCH_DOCUMENTS`       | `10`                            | Maximum PDFs in one batch         |
 | `AI_ENABLED`                | `true`                          | Enable local document analysis    |
 | `OLLAMA_MODEL`              | `qwen2.5:1.5b`                  | Default local model               |
-| `OLLAMA_AVAILABLE_MODELS`   | `qwen2.5:1.5b,qwen2.5:0.5b`    | Selectable models                 |
+| `OLLAMA_AVAILABLE_MODELS`   | Five local model IDs            | Selectable models                 |
 | `MAX_ANALYSIS_MODELS`       | `2`                             | Models allowed per document       |
 | `AI_TIMEOUT_SECONDS`        | `180`                           | Model request deadline            |
 | `AI_MAX_CHARACTERS`         | `12000`                         | Maximum extracted text sent to AI |

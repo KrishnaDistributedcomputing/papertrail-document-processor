@@ -25,7 +25,7 @@ ARTICLES = (
         title="About Papertrail",
         answer=(
             "Papertrail turns native or scanned PDF files into structured JSON. It extracts "
-            "text locally, can compare two local Qwen models, keeps each customer in a separate "
+            "text locally, can compare two of five local models, keeps each customer in a separate "
             "workspace, and shows document, storage, retention, and estimated cost details."
         ),
         keywords=("what is papertrail", "what does", "portal", "getting started", "start", "overview", "help"),
@@ -63,11 +63,14 @@ ARTICLES = (
         id="models",
         title="Local AI models",
         answer=(
-            "Qwen 2.5 1.5B is the balanced model for richer structured analysis, while Qwen 2.5 "
-            "0.5B is smaller and faster. Choose either model, or both to compare responses against "
-            "the same extracted text. The models run locally through Ollama and do not read the raw PDF."
+            "Papertrail includes five local models. Qwen 2.5 0.5B is fastest, Qwen 2.5 1.5B "
+            "is the balanced default, and Qwen 2.5 3B provides more detailed structured analysis. "
+            "Llama 3.2 3B adds strong instruction following, while Gemma 3 1B provides a compact "
+            "alternative. Choose up to two to compare "
+            "responses against the same extracted text. Ollama runs every model locally, and the "
+            "models do not read the raw PDF."
         ),
-        keywords=("model", "qwen", "ollama", "ai", "1.5b", "0.5b", "compare", "which model", "analysis model"),
+        keywords=("model", "qwen", "llama", "gemma", "ollama", "ai", "1.5b", "0.5b", "3b", "1b", "compare", "which model", "analysis model"),
         href="/logic",
         link_label="View LLM logic",
         suggestions=("How does processing work?", "Are my documents private?", "How do I compare model results?"),
@@ -172,7 +175,7 @@ ARTICLES = (
         id="privacy",
         title="Privacy and isolation",
         answer=(
-            "PDF extraction, OCR, and Qwen analysis run inside the local Docker project; Papertrail "
+            "PDF extraction, OCR, and selected Ollama analysis run inside the local Docker project; Papertrail "
             "does not send document text to a third-party LLM. When Azure storage is configured, "
             "source PDFs and JSON results are written to private, customer-specific containers."
         ),

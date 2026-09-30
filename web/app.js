@@ -215,7 +215,7 @@ modelOptions.addEventListener("change", (event) => {
   state.selectedModels = selected;
   document.querySelector("#model-picker-help").textContent = selected.length > 1
     ? `${selected.length} models will analyze the same extracted text for comparison.`
-    : "Select one model, or select both to compare results.";
+    : "Select one model, or up to two to compare results.";
   renderSelectedFiles();
 });
 

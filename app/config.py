@@ -16,6 +16,21 @@ OLLAMA_MODEL_CATALOG = {
         "description": "Faster comparison model with a smaller memory footprint",
         "size": "397 MB",
     },
+    "qwen2.5:3b": {
+        "name": "Qwen 2.5 3B",
+        "description": "Higher-detail structured analysis and JSON generation",
+        "size": "1.9 GB",
+    },
+    "llama3.2:3b": {
+        "name": "Llama 3.2 3B",
+        "description": "Strong instruction following and multilingual summaries",
+        "size": "2.0 GB",
+    },
+    "gemma3:1b": {
+        "name": "Gemma 3 1B",
+        "description": "Compact multilingual reasoning and summarization",
+        "size": "815 MB",
+    },
 }
 
 
@@ -36,7 +51,9 @@ class Settings(BaseSettings):
     ai_enabled: bool = True
     ollama_url: str = "http://ollama:11434"
     ollama_model: str = "qwen2.5:1.5b"
-    ollama_available_models: str = "qwen2.5:1.5b,qwen2.5:0.5b"
+    ollama_available_models: str = (
+        "qwen2.5:1.5b,qwen2.5:0.5b,qwen2.5:3b,llama3.2:3b,gemma3:1b"
+    )
     max_analysis_models: int = 2
     ai_timeout_seconds: int = 180
     ai_max_characters: int = 12000

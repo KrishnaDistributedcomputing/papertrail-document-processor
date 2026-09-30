@@ -9,7 +9,7 @@ keywords:
   - GitHub Container Registry
   - deployment
   - Azure Blob Storage
-estimated_reading_time: 8
+estimated_reading_time: 12
 ---
 
 ## One-command deployment
@@ -62,11 +62,262 @@ Install the following software on the deployment host:
 * Docker Engine or Docker Desktop with Docker Compose v2
 * PowerShell 7 for the Windows launcher
 * Bash, `curl`, and `tar` for the Linux and macOS launcher
-* At least 8 GB RAM and 10 GB free disk space for both local Qwen models,
+* At least 8 GB RAM and 15 GB free disk space for the five default local models,
   container images, and initial runtime data
 
 The public web service listens on port `8081` by default. The API, queue, and
 model services stay on private Docker networks.
+
+## Host on Azure
+
+Use a single Ubuntu virtual machine for the current Papertrail architecture.
+This preserves Docker Compose, CPU-local Ollama inference, SQLite, Redis, and
+the three persistent named volumes. Azure App Service and Azure Container Apps
+are not drop-in targets for this six-service manifest because the model cache,
+queue, and document database require coordinated persistent storage.
+
+### Recommended Azure configuration
+
+| Resource             | Recommended baseline                         |
+|----------------------|----------------------------------------------|
+| Virtual machine      | `Standard_D4s_v5` (4 vCPU, 16 GB RAM)        |
+| Operating system     | Ubuntu 22.04 LTS                              |
+| OS disk              | 64 GB or larger Standard SSD                 |
+| Managed identity     | System-assigned                              |
+| Blob storage         | StorageV2 with `Standard_LRS`                |
+| Inbound access       | SSH from an approved IP; HTTPS for users     |
+| Papertrail port      | `8081`, kept private behind SSH or a proxy   |
+
+Larger models and concurrent document processing benefit from additional CPU
+and memory. Keep one application replica unless SQLite, Redis, and the named
+volumes are replaced with shared production services.
+
+### Create the Azure resources
+
+Install the Azure CLI on your workstation, sign in, and run these commands in
+PowerShell. The storage account suffix makes its globally unique name easier
+to create. Replace `<approved-public-ip>` with your workstation's public IPv4
+address before running the block; keep the `/32` suffix to allow only that
+address to connect over SSH.
+
+```powershell
+az login
+
+$ResourceGroup = "rg-papertrail-prod"
+$Location = "eastus"
+$VmName = "vm-papertrail-prod"
+$AdminUser = "azureuser"
+$ApprovedSshCidr = "<approved-public-ip>/32"
+$NsgName = "nsg-$VmName"
+$StorageAccount = "papertrail$((Get-Random -Minimum 100000 -Maximum 999999))"
+$SubscriptionId = az account show --query id --output tsv
+
+az group create --name $ResourceGroup --location $Location
+az storage account create `
+  --name $StorageAccount `
+  --resource-group $ResourceGroup `
+  --location $Location `
+  --kind StorageV2 `
+  --sku Standard_LRS `
+  --https-only true `
+  --min-tls-version TLS1_2 `
+  --allow-blob-public-access false
+
+az network nsg create `
+  --resource-group $ResourceGroup `
+  --name $NsgName `
+  --location $Location
+az network nsg rule create `
+  --resource-group $ResourceGroup `
+  --nsg-name $NsgName `
+  --name AllowApprovedSsh `
+  --priority 100 `
+  --access Allow `
+  --direction Inbound `
+  --protocol Tcp `
+  --source-address-prefixes $ApprovedSshCidr `
+  --destination-port-ranges 22
+
+az vm create `
+  --resource-group $ResourceGroup `
+  --name $VmName `
+  --location $Location `
+  --image Ubuntu2204 `
+  --size Standard_D4s_v5 `
+  --admin-username $AdminUser `
+  --generate-ssh-keys `
+  --os-disk-size-gb 64 `
+  --storage-sku StandardSSD_LRS `
+  --public-ip-sku Standard `
+  --nsg $NsgName `
+  --nsg-rule NONE `
+  --assign-identity
+
+$PrincipalId = az vm identity show `
+  --resource-group $ResourceGroup `
+  --name $VmName `
+  --query principalId `
+  --output tsv
+$StorageId = az storage account show `
+  --resource-group $ResourceGroup `
+  --name $StorageAccount `
+  --query id `
+  --output tsv
+$ResourceGroupId = az group show `
+  --name $ResourceGroup `
+  --query id `
+  --output tsv
+$LifecycleRoleName = "Papertrail Lifecycle Manager $ResourceGroup"
+$LifecycleRoleFile = Join-Path $env:TEMP "papertrail-lifecycle-role.json"
+@{
+  Name = $LifecycleRoleName
+  Description = "Read and update Papertrail Blob lifecycle policies"
+  Actions = @(
+    "Microsoft.Storage/storageAccounts/read"
+    "Microsoft.Storage/storageAccounts/managementPolicies/read"
+    "Microsoft.Storage/storageAccounts/managementPolicies/write"
+  )
+  NotActions = @()
+  DataActions = @()
+  NotDataActions = @()
+  AssignableScopes = @($ResourceGroupId)
+} | ConvertTo-Json -Depth 5 | Set-Content -Encoding utf8 $LifecycleRoleFile
+
+az role definition create --role-definition $LifecycleRoleFile
+Remove-Item $LifecycleRoleFile
+
+az role assignment create `
+  --assignee-object-id $PrincipalId `
+  --assignee-principal-type ServicePrincipal `
+  --role $LifecycleRoleName `
+  --scope $StorageId
+
+$PublicIp = az vm show `
+  --resource-group $ResourceGroup `
+  --name $VmName `
+  --show-details `
+  --query publicIps `
+  --output tsv
+
+[pscustomobject]@{
+  PublicIp = $PublicIp
+  ApprovedSshCidr = $ApprovedSshCidr
+  StorageAccount = $StorageAccount
+  SubscriptionId = $SubscriptionId
+}
+```
+
+The VM identity receives only storage-account read and lifecycle-policy
+read/write actions. The operator account creates the custom role and retrieves
+the connection string. Creating custom roles and role assignments requires
+Owner or User Access Administrator permissions. Role propagation can take
+several minutes.
+
+### Install Papertrail on the VM
+
+Connect to the VM, install Docker Engine and the Azure CLI, then reconnect so
+the Docker group membership takes effect:
+
+```powershell
+ssh "$AdminUser@$PublicIp"
+```
+
+```bash
+sudo apt-get update
+sudo apt-get install --yes ca-certificates curl
+curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+sudo sh /tmp/get-docker.sh
+rm /tmp/get-docker.sh
+sudo usermod --append --groups docker "$USER"
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+exit
+```
+
+Reconnect, authenticate with the VM identity, and run the standard launcher:
+
+```powershell
+ssh "$AdminUser@$PublicIp"
+```
+
+```bash
+az login --identity
+curl -fsSL https://raw.githubusercontent.com/KrishnaDistributedcomputing/papertrail-document-processor/main/scripts/start-papertrail.sh | bash -s -- --no-browser
+cd ~/.papertrail
+cp .env.example .env
+```
+
+Set the Azure values created earlier. Replace the angle-bracket placeholders
+with the values printed by the resource creation commands.
+
+```bash
+export AZURE_SUBSCRIPTION_ID="<subscription-id>"
+export AZURE_RESOURCE_GROUP="rg-papertrail-prod"
+export AZURE_STORAGE_ACCOUNT_NAME="<storage-account-name>"
+export AZURE_STORAGE_REGION="eastus"
+
+sed -i \
+  -e "s|^AZURE_SUBSCRIPTION_ID=.*|AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}|" \
+  -e "s|^AZURE_RESOURCE_GROUP=.*|AZURE_RESOURCE_GROUP=${AZURE_RESOURCE_GROUP}|" \
+  -e "s|^AZURE_STORAGE_ACCOUNT_NAME=.*|AZURE_STORAGE_ACCOUNT_NAME=${AZURE_STORAGE_ACCOUNT_NAME}|" \
+  -e "s|^AZURE_STORAGE_REGION=.*|AZURE_STORAGE_REGION=${AZURE_STORAGE_REGION}|" \
+  -e "s|^AZURE_MANAGEMENT_IDENTITY_ENABLED=.*|AZURE_MANAGEMENT_IDENTITY_ENABLED=true|" \
+  .env
+```
+
+From the workstation PowerShell session that created the resources, retrieve
+the connection string with your operator identity and send it directly to the
+protected secret file. The value is not granted to the VM identity.
+
+```powershell
+$ConnectionString = az storage account show-connection-string `
+  --subscription $SubscriptionId `
+  --resource-group $ResourceGroup `
+  --name $StorageAccount `
+  --query connectionString `
+  --output tsv
+$SecretLine = "AZURE_STORAGE_CONNECTION_STRING=$ConnectionString"
+$SecretLine | ssh "$AdminUser@$PublicIp" `
+  'umask 077; mkdir -p ~/.papertrail/.secrets; cat > ~/.papertrail/.secrets/azure.env; chmod 600 ~/.papertrail/.secrets/azure.env'
+$ConnectionString = $null
+$SecretLine = $null
+```
+
+Return to the VM session and apply the configuration:
+
+```bash
+cd ~/.papertrail
+./scripts/start-papertrail.sh --no-browser
+```
+
+The connection string enables source and result uploads. The managed identity
+enables lifecycle policy updates from the retention controls in Papertrail.
+
+### Access and validate the Azure host
+
+Keep port `8081` closed to the internet during initial validation. From your
+workstation, create an SSH tunnel and leave the command running:
+
+```powershell
+ssh -L 8081:127.0.0.1:8081 "$AdminUser@$PublicIp"
+```
+
+Open <http://localhost:8081>, then verify service and API health on the VM:
+
+```bash
+cd ~/.papertrail
+docker compose ps
+curl --fail http://127.0.0.1:8081/api/v1/health/live
+```
+
+> [!IMPORTANT]
+> Papertrail does not provide user authentication. For shared or production
+> access, keep `8081` private and place an authenticated TLS reverse proxy,
+> VPN, or managed ingress in front of it. Allow only ports `80` and `443` from
+> the required client networks, and restrict SSH to approved source addresses.
+
+Back up or snapshot the VM disk as well as Azure Blob Storage. Blob persistence
+contains source PDFs and result JSON, while SQLite history, Redis state, and
+the downloaded Ollama models remain in Docker volumes on the VM disk.
 
 ## Run from a clone
 
@@ -111,7 +362,7 @@ when bypassing the launcher:
 docker compose up --detach --build --wait
 ```
 
-The first deployment downloads the configured Qwen models through the
+The first deployment downloads the configured Ollama models through the
 one-shot `ollama-model` service. This can take several minutes. Later starts
 reuse the `papertrail_ollama-data` volume.
 

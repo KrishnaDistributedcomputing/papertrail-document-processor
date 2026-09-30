@@ -14,6 +14,7 @@ from app import database
 from app.config import settings
 from app.main import (
     RetentionUpdate,
+    _select_models,
     get_cost_overview,
     get_customers,
     get_models,
@@ -82,8 +83,28 @@ def test_lists_configured_analysis_models() -> None:
     assert [model["id"] for model in payload["models"]] == [
         "qwen2.5:1.5b",
         "qwen2.5:0.5b",
+        "qwen2.5:3b",
+        "llama3.2:3b",
+        "gemma3:1b",
     ]
     assert payload["models"][0]["default"] is True
+    assert payload["models"][2]["size"] == "1.9 GB"
+    assert payload["models"][3]["name"] == "Llama 3.2 3B"
+    assert payload["models"][4]["name"] == "Gemma 3 1B"
+
+
+@pytest.mark.parametrize(
+    "model_id",
+    [
+        "qwen2.5:1.5b",
+        "qwen2.5:0.5b",
+        "qwen2.5:3b",
+        "llama3.2:3b",
+        "gemma3:1b",
+    ],
+)
+def test_accepts_each_available_analysis_model(model_id: str) -> None:
+    assert _select_models([model_id]) == [model_id]
 
 
 def test_rejects_unsupported_analysis_model_before_staging() -> None:

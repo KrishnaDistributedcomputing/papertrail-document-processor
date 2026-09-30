@@ -13,6 +13,7 @@ from app.support import ARTICLES, answer_support_question
         ("How is Azure AI token usage priced?", "tokens", "illustrative only"),
         ("How long can I keep files?", "retention", "10 years"),
         ("Does my document go to a third-party AI?", "privacy", "local Docker"),
+        ("Which AI model should I choose?", "models", "five local models"),
     ],
 )
 def test_routes_common_level_one_questions(

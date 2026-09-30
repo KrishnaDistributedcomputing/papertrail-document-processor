@@ -32,13 +32,13 @@
           <p class="lede">
             The language model never reads the PDF directly. Papertrail extracts and labels
             page text first, creates one bounded factual prompt, and sends the same evidence to
-            each selected local Qwen model before storing comparable structured responses.
+            each selected local model before storing comparable structured responses.
           </p>
         </div>
         <dl class="runtime-facts">
-          <div><dt>Models</dt><dd>Qwen2.5 1.5B + 0.5B</dd></div>
+          <div><dt>Models</dt><dd>Five local options</dd></div>
           <div><dt>Context sent</dt><dd>Up to 12,000 characters</dd></div>
-          <div><dt>Temperature</dt><dd>0.1</dd></div>
+          <div><dt>Temperature</dt><dd>Model-specific: 0 or 0.1</dd></div>
           <div><dt>Confidence</dt><dd>Deterministic input quality</dd></div>
           <div><dt>Endpoint</dt><dd>Internal Ollama API</dd></div>
         </dl>
@@ -104,7 +104,7 @@
           <li>
             <span class="logic-step">05</span>
             <strong>Generate locally</strong>
-            <p>The worker calls each selected model sequentially with identical text, temperature 0.1, streaming disabled, and the same output schema.</p>
+            <p>The worker sends identical text to each selected model. Qwen and Gemma use schema-constrained JSON at temperature 0.1; Llama uses deterministic JSON mode at temperature 0. Every response is normalized to the shared output contract.</p>
             <code>1-2 model calls</code>
           </li>
           <li>

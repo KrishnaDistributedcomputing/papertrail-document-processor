@@ -106,8 +106,10 @@ h1 { font-family: "Georgia", serif; font-size: clamp(44px, 5vw, 72px); line-heig
 .model-picker legend { padding: 0; color: var(--ink); font-size: 12px; font-weight: 800; text-transform: uppercase; }
 .model-picker > p { margin: 5px 0 10px; color: var(--muted); font-size: 12px; }
 .model-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--line); }
-.model-option { min-width: 0; min-height: 88px; padding: 12px; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 5px 10px; align-content: center; border-right: 1px solid var(--line); background: var(--white); cursor: pointer; }
-.model-option:last-child { border-right: 0; }
+.model-option { min-width: 0; min-height: 88px; padding: 12px; display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 5px 10px; align-content: center; border-bottom: 1px solid var(--line); background: var(--white); cursor: pointer; }
+.model-option:nth-child(odd):not(:last-child) { border-right: 1px solid var(--line); }
+.model-option:last-child { border-bottom: 0; }
+.model-option:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .model-option:has(input:checked) { background: var(--mint); box-shadow: inset 0 -3px var(--forest); }
 .model-option input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--forest); }
 .model-option-copy { min-width: 0; }
@@ -577,7 +579,7 @@ button.history-item:hover { background: rgb(220 236 230 / 45%); }
   .upload-layout { grid-template-columns: 1fr; padding-top: 54px; }
   .drop-zone { min-height: 260px; }
   .model-options { grid-template-columns: 1fr; }
-  .model-option { border-right: 0; border-bottom: 1px solid var(--line); }
+  .model-option, .model-option:last-child:nth-child(odd) { grid-column: auto; border-right: 0; border-bottom: 1px solid var(--line); }
   .model-option:last-child { border-bottom: 0; }
   .history-item { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; }
   .history-category, .history-item > span:last-child { grid-column: 1 / -1; }

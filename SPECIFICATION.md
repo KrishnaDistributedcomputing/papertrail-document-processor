@@ -155,7 +155,7 @@ flowchart LR
 | Document storage  | Source PDFs and generated JSON                    | Named Docker volume        |
 | PDF parser        | Text, coordinates, metadata, and page rendering   | PyMuPDF                    |
 | OCR engine        | Text recognition for scanned pages               | Tesseract                  |
-| Local AI          | Selectable grounded analysis and comparison        | Ollama with Qwen2.5 models |
+| Local AI          | Selectable grounded analysis and comparison        | Ollama with local models   |
 
 Library choices are implementation details, not public API contracts.
 
@@ -463,7 +463,7 @@ Docker Compose defines these services:
 | `MAX_BATCH_DOCUMENTS`       | `10`           | Maximum documents per upload batch   |
 | `AI_ENABLED`                | `true`         | Enable local analysis                |
 | `OLLAMA_MODEL`              | `qwen2.5:1.5b` | Local Ollama model                    |
-| `OLLAMA_AVAILABLE_MODELS`   | Two model IDs  | Comma-separated selectable models     |
+| `OLLAMA_AVAILABLE_MODELS`   | Five model IDs | Comma-separated selectable models     |
 | `MAX_ANALYSIS_MODELS`       | `2`            | Models allowed per processing run     |
 | `AI_TIMEOUT_SECONDS`        | `180`          | Local model request deadline          |
 | `AI_MAX_CHARACTERS`         | `12000`        | Maximum document text sent to AI      |

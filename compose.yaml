@@ -13,7 +13,7 @@ x-app-environment: &app-environment
   AI_ENABLED: ${AI_ENABLED:-true}
   OLLAMA_URL: http://ollama:11434
   OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
-  OLLAMA_AVAILABLE_MODELS: ${OLLAMA_AVAILABLE_MODELS:-qwen2.5:1.5b,qwen2.5:0.5b}
+  OLLAMA_AVAILABLE_MODELS: ${OLLAMA_AVAILABLE_MODELS:-qwen2.5:1.5b,qwen2.5:0.5b,qwen2.5:3b,llama3.2:3b,gemma3:1b}
   MAX_ANALYSIS_MODELS: ${MAX_ANALYSIS_MODELS:-2}
   AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-180}
   AI_MAX_CHARACTERS: ${AI_MAX_CHARACTERS:-12000}
@@ -158,7 +158,10 @@ services:
         server_pid=$$!
         until ollama list >/dev/null 2>&1; do sleep 1; done
         pull_status=0
-        for model in $$(printf '%s' "$$OLLAMA_AVAILABLE_MODELS" | tr ',' ' '); do
+        pulled_models=''
+        for model in $$(printf '%s,%s' "$$OLLAMA_MODEL" "$$OLLAMA_AVAILABLE_MODELS" | tr ',' ' '); do
+          case " $$pulled_models " in *" $$model "*) continue ;; esac
+          pulled_models="$$pulled_models $$model"
           if ! ollama pull "$$model"; then pull_status=1; fi
         done
         kill "$$server_pid"
@@ -167,7 +170,7 @@ services:
     environment:
       OLLAMA_HOST: 127.0.0.1:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
-      OLLAMA_AVAILABLE_MODELS: ${OLLAMA_AVAILABLE_MODELS:-qwen2.5:1.5b,qwen2.5:0.5b}
+      OLLAMA_AVAILABLE_MODELS: ${OLLAMA_AVAILABLE_MODELS:-qwen2.5:1.5b,qwen2.5:0.5b,qwen2.5:3b,llama3.2:3b,gemma3:1b}
     volumes:
       - ollama-data:/root/.ollama
     restart: "no"

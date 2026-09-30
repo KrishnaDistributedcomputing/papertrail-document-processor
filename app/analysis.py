@@ -7,6 +7,8 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from jsonschema import ValidationError, validate
+
 
 class AnalysisError(RuntimeError):
     """Raised when the local AI service cannot produce valid analysis."""
@@ -15,7 +17,7 @@ class AnalysisError(RuntimeError):
 _ANALYSIS_SCHEMA = {
     "type": "object",
     "properties": {
-        "summary": {"type": "string"},
+        "summary": {"type": "string", "minLength": 1},
         "key_points": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
         "entities": {
             "type": "array",
@@ -33,6 +35,8 @@ _ANALYSIS_SCHEMA = {
     },
     "required": ["summary", "key_points", "entities", "action_items"],
 }
+
+_JSON_FORMAT_MODEL_PREFIXES = ("llama3.2:",)
 
 
 def _document_context(result: dict[str, Any], max_characters: int) -> tuple[str, int]:
@@ -99,7 +103,28 @@ def _evidence_confidence(
 def _string_list(value: Any, limit: int) -> list[str]:
     if not isinstance(value, list):
         return []
-    return [str(item).strip() for item in value if str(item).strip()][:limit]
+    strings: list[str] = []
+    for item in value:
+        if isinstance(item, dict):
+            text = str(
+                item.get("text")
+                or item.get("task")
+                or item.get("action")
+                or item.get("description")
+                or ""
+            ).strip()
+            details = []
+            for label in ("owner", "deadline"):
+                detail = str(item.get(label) or "").strip()
+                if detail and detail.casefold() not in text.casefold():
+                    details.append(f"{label}: {detail}")
+            if text and details:
+                text = f"{text} ({'; '.join(details)})"
+        else:
+            text = str(item).strip()
+        if text:
+            strings.append(text)
+    return strings[:limit]
 
 
 def _entities(value: Any) -> list[dict[str, str]]:
@@ -123,6 +148,50 @@ def _nonnegative_int(value: Any) -> int:
         return 0
 
 
+def _normalize_analysis(generated: dict[str, Any]) -> dict[str, Any]:
+    key_points = _string_list(generated.get("key_points"), 5)
+    summary = str(generated.get("summary") or "").strip()
+    if not summary and key_points:
+        summary = key_points[0]
+    normalized = {
+        "summary": summary,
+        "key_points": key_points,
+        "entities": _entities(generated.get("entities")),
+        "action_items": _string_list(generated.get("action_items"), 5),
+    }
+    try:
+        validate(instance=normalized, schema=_ANALYSIS_SCHEMA)
+    except ValidationError as error:
+        raise AnalysisError(
+            f"Local AI analysis returned invalid structured JSON: {error.message}"
+        ) from error
+    return normalized
+
+
+def _generate_analysis(
+    *,
+    base_url: str,
+    payload: dict[str, Any],
+    timeout_seconds: int,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    request = Request(
+        f"{base_url.rstrip('/')}/api/generate",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            ollama_payload = json.loads(response.read().decode("utf-8"))
+        generated = json.loads(str(ollama_payload.get("response") or ""))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError) as error:
+        raise AnalysisError(f"Local AI analysis failed: {error}") from error
+
+    if not isinstance(generated, dict):
+        raise AnalysisError("Local AI analysis returned an invalid JSON object.")
+    return ollama_payload, generated
+
+
 def analyze_document(
     result: dict[str, Any],
     *,
@@ -143,39 +212,45 @@ def analyze_document(
 
     document = result.get("document", {})
     category = document.get("classification", {}).get("category", "other")
-    prompt = (
-        "Analyze the document below using only its supplied text. Do not infer missing facts. "
-        "Write a concise factual summary, up to five key points, named entities with simple "
-        "types such as person, organization, date, amount, or location, and explicit action "
-        "items. Use empty arrays when the document contains none.\n\n"
-        f"Filename: {document.get('filename', 'document.pdf')}\n"
-        f"Existing rule-based category: {category}\n\n"
-        f"DOCUMENT TEXT\n{text}"
-    )
+    use_json_format = model.startswith(_JSON_FORMAT_MODEL_PREFIXES)
+    if use_json_format:
+        prompt = (
+            "Analyze only the supplied document text. Return one JSON object with exactly these "
+            "fields: summary (a concise factual string), key_points (an array of up to 5 explicit "
+            "facts), entities (an array of objects with name and type strings for named people, "
+            "organizations, dates, amounts, and locations), and action_items (an array of up to "
+            "5 strings describing explicit tasks, recommendations, owners, or deadlines). Do not "
+            "invent facts. Use "
+            "an empty array only when no matching evidence exists.\n\n"
+            f"Filename: {document.get('filename', 'document.pdf')}\n"
+            f"Category: {category}\n\n"
+            f"DOCUMENT TEXT\n{text}"
+        )
+    else:
+        prompt = (
+            "Analyze the document below using only its supplied text. Do not infer missing facts. "
+            "Write a concise factual summary, up to five key points, named entities with simple "
+            "types such as person, organization, date, amount, or location, and explicit action "
+            "items. Return exactly these fields: summary, key_points, entities, and action_items. "
+            "Use empty arrays only when the document contains no matching evidence.\n\n"
+            f"Filename: {document.get('filename', 'document.pdf')}\n"
+            f"Existing rule-based category: {category}\n\n"
+            f"DOCUMENT TEXT\n{text}"
+        )
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "format": _ANALYSIS_SCHEMA,
-        "options": {"temperature": 0.1},
+        "format": "json" if use_json_format else _ANALYSIS_SCHEMA,
+        "options": {"temperature": 0 if use_json_format else 0.1},
         "keep_alive": "10m",
     }
-    request = Request(
-        f"{base_url.rstrip('/')}/api/generate",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
+    ollama_payload, generated = _generate_analysis(
+        base_url=base_url,
+        payload=payload,
+        timeout_seconds=timeout_seconds,
     )
-
-    try:
-        with urlopen(request, timeout=timeout_seconds) as response:
-            ollama_payload = json.loads(response.read().decode("utf-8"))
-        generated = json.loads(str(ollama_payload.get("response") or ""))
-    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError) as error:
-        raise AnalysisError(f"Local AI analysis failed: {error}") from error
-
-    if not isinstance(generated, dict):
-        raise AnalysisError("Local AI analysis returned an invalid JSON object.")
+    normalized = _normalize_analysis(generated)
 
     return {
         "status": "completed",
@@ -191,8 +266,5 @@ def analyze_document(
             "prompt_tokens": _nonnegative_int(ollama_payload.get("prompt_eval_count")),
             "output_tokens": _nonnegative_int(ollama_payload.get("eval_count")),
         },
-        "summary": str(generated.get("summary") or "").strip(),
-        "key_points": _string_list(generated.get("key_points"), 5),
-        "entities": _entities(generated.get("entities")),
-        "action_items": _string_list(generated.get("action_items"), 5),
+        **normalized,
     }

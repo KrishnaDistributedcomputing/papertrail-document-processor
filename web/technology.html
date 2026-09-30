@@ -37,7 +37,7 @@
         <dl class="runtime-facts">
           <div><dt>Runtime</dt><dd>Python 3.13 on Linux</dd></div>
           <div><dt>Output</dt><dd>JSON schema 1.2</dd></div>
-          <div><dt>Local AI</dt><dd>Qwen2.5 1.5B + 0.5B</dd></div>
+          <div><dt>Local AI</dt><dd>Five selectable Ollama models</dd></div>
           <div><dt>Execution</dt><dd>Local Docker services</dd></div>
         </dl>
       </section>
@@ -95,7 +95,7 @@
           <article>
             <span class="decision-number">04</span>
             <h3>Grounded local analysis</h3>
-            <p>One or two selected Qwen2.5 models receive the same bounded text and return comparable structured results.</p>
+            <p>One or two selected local models receive the same bounded text and return comparable structured results.</p>
           </article>
         </div>
       </section>
@@ -115,7 +115,7 @@
               <tr><td>History</td><td>SQLite 3</td><td>Durable run state, metadata, and complete JSON results</td></tr>
               <tr><td>PDF</td><td>PyMuPDF 1.25+</td><td>Native text, layout blocks, metadata, page rendering</td></tr>
               <tr><td>OCR</td><td>Tesseract 5 + tessdata_best</td><td>Local recognition for scanned or low-text pages</td></tr>
-              <tr><td>AI</td><td>Ollama + Qwen2.5 1.5B / 0.5B</td><td>Selectable CPU-local analysis and side-by-side comparison</td></tr>
+              <tr><td>AI</td><td>Ollama + Qwen2.5 / Llama 3.2 / Gemma 3</td><td>Selectable CPU-local analysis and side-by-side comparison</td></tr>
               <tr><td>Contract</td><td>JSON schema 1.2</td><td>Versioned, machine-readable document output</td></tr>
             </tbody>
           </table>

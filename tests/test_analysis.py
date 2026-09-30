@@ -4,7 +4,9 @@ import json
 from typing import Any
 from unittest.mock import patch
 
-from app.analysis import analyze_document
+import pytest
+
+from app.analysis import AnalysisError, analyze_document
 
 
 class _FakeResponse:
@@ -94,6 +96,93 @@ def test_analyzes_extracted_text_with_structured_ollama_response() -> None:
         "entities": [{"name": "$125.00", "type": "amount"}],
         "action_items": ["Pay the invoice"],
     }
+
+
+def test_uses_json_mode_for_llama_analysis() -> None:
+    text = "Maya Chen will deliver the validation fix by October 3."
+    result = {
+        "document": {
+            "filename": "report.pdf",
+            "classification": {"category": "report"},
+        },
+        "pages": [{"page_number": 1, "text": text, "text_source": "native"}],
+    }
+    json_response = {
+        "total_duration": 2_000_000_000,
+        "prompt_eval_count": 32,
+        "eval_count": 20,
+        "response": json.dumps(
+            {
+                "summary": "Maya Chen owns a validation fix due October 3.",
+                "key_points": ["The validation fix is due October 3"],
+                "entities": [
+                    {"name": "Maya Chen", "type": "person"},
+                    {"name": "October 3", "type": "date"},
+                ],
+                "action_items": [
+                    {
+                        "task": "Deliver the validation fix",
+                        "owner": "Maya Chen",
+                        "deadline": "October 3",
+                    }
+                ],
+            }
+        ),
+    }
+
+    with patch("app.analysis.urlopen", return_value=_FakeResponse(json_response)) as request:
+        analysis = analyze_document(
+            result,
+            base_url="http://ollama:11434",
+            model="llama3.2:3b",
+            timeout_seconds=120,
+            max_characters=12000,
+        )
+
+    outgoing = json.loads(request.call_args.args[0].data.decode("utf-8"))
+    assert request.call_count == 1
+    assert outgoing["format"] == "json"
+    assert outgoing["options"]["temperature"] == 0
+    assert "named people" in outgoing["prompt"]
+    assert "strings describing explicit tasks" in outgoing["prompt"]
+    assert text in outgoing["prompt"]
+    assert analysis["summary"] == "Maya Chen owns a validation fix due October 3."
+    assert analysis["key_points"] == ["The validation fix is due October 3"]
+    assert analysis["entities"] == [
+        {"name": "Maya Chen", "type": "person"},
+        {"name": "October 3", "type": "date"},
+    ]
+    assert analysis["action_items"] == [
+        "Deliver the validation fix (owner: Maya Chen; deadline: October 3)"
+    ]
+    assert analysis["performance"] == {
+        "duration_ms": 2000,
+        "prompt_tokens": 32,
+        "output_tokens": 20,
+    }
+
+
+def test_rejects_empty_structured_analysis() -> None:
+    result = {
+        "document": {
+            "filename": "report.pdf",
+            "classification": {"category": "report"},
+        },
+        "pages": [{"page_number": 1, "text": "A completed report."}],
+    }
+    model_response = {"response": json.dumps({})}
+
+    with (
+        patch("app.analysis.urlopen", return_value=_FakeResponse(model_response)),
+        pytest.raises(AnalysisError, match="invalid structured JSON"),
+    ):
+        analyze_document(
+            result,
+            base_url="http://ollama:11434",
+            model="llama3.2:3b",
+            timeout_seconds=120,
+            max_characters=12000,
+        )
 
 
 def test_reduces_confidence_when_ocr_text_is_truncated() -> None:
