@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Extract structured JSON from native and scanned PDF documents." />
+    <title>Papertrail | PDF to structured JSON</title>
+    <link rel="stylesheet" href="/styles.css?v=1.9.0" />
+  </head>
+  <body>
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Papertrail home">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>Papertrail</span>
+      </a>
+      <div class="masthead-tools">
+        <nav class="masthead-nav" aria-label="Primary navigation">
+          <a class="nav-link" href="/" aria-current="page">Processor</a>
+          <a class="nav-link" href="#cost-dashboard">Costs</a>
+          <a class="nav-link" href="/tokens">Tokens</a>
+          <a class="nav-link" href="/technology">Technology</a>
+          <a class="nav-link" href="/logic">LLM logic</a>
+        </nav>
+        <div class="service-state"><span></span> Local processing</div>
+      </div>
+    </header>
+
+    <main>
+      <section id="upload-view" class="upload-layout" aria-labelledby="upload-title">
+        <div class="intro">
+          <p class="eyebrow">Document intelligence, on your machine</p>
+          <h1 id="upload-title">Turn dense PDFs into useful data.</h1>
+          <p class="lede">
+            Process native and scanned PDFs in batches, use local AI for
+            structured insights, and keep each customer's files isolated in
+            private Azure storage.
+          </p>
+          <div class="process-strip" aria-label="Processing workflow">
+            <span>01 Upload</span><i></i><span>02 Extract</span><i></i><span>03 Inspect</span>
+          </div>
+        </div>
+
+        <form id="upload-form" class="upload-panel">
+          <label class="customer-picker" for="customer-select">
+            <span>Customer workspace</span>
+            <select id="customer-select" name="customer_id" disabled>
+              <option>Loading customer workspaces...</option>
+            </select>
+            <small id="customer-destination">Choose where this batch will be stored.</small>
+          </label>
+          <input id="file-input" name="files" type="file" accept="application/pdf,.pdf" multiple hidden />
+          <label id="drop-zone" for="file-input" class="drop-zone">
+            <span class="upload-icon" aria-hidden="true">&#8593;</span>
+            <strong>Drop your PDFs here</strong>
+            <span>or choose documents from your computer</span>
+            <small>Up to 10 PDFs, 50 MB each</small>
+          </label>
+          <div id="file-list" class="file-list" hidden>
+            <div class="file-list-header">
+              <strong id="file-count">Selected documents</strong>
+              <button id="clear-files" type="button">Clear all</button>
+            </div>
+            <div id="selected-files"></div>
+          </div>
+          <fieldset class="model-picker">
+            <legend>Analysis models</legend>
+            <p id="model-picker-help">Select one model, or select both to compare results.</p>
+            <div id="model-options" class="model-options" aria-describedby="model-picker-help">
+              <span class="model-loading">Loading local models...</span>
+            </div>
+          </fieldset>
+          <button id="submit-button" class="primary-button" type="submit" disabled>
+            <span id="submit-label">Process documents</span><span aria-hidden="true">&#8594;</span>
+          </button>
+          <p id="upload-error" class="error-message" role="alert"></p>
+        </form>
+
+        <section class="history-panel" aria-labelledby="history-title">
+          <header class="history-header">
+            <div>
+              <p class="eyebrow">Local run archive</p>
+              <h2 id="history-title">Recent processing history</h2>
+            </div>
+            <button id="refresh-history" class="history-refresh" type="button" title="Refresh history" aria-label="Refresh history">&#8635;</button>
+          </header>
+          <p id="history-status" class="history-status">Loading saved runs...</p>
+          <div id="history-list" class="history-list"></div>
+        </section>
+
+        <section id="cost-dashboard" class="cost-dashboard" aria-labelledby="cost-dashboard-title">
+          <header class="cost-dashboard-header">
+            <div>
+              <p class="eyebrow">Azure cost dashboard</p>
+              <h2 id="cost-dashboard-title">Cost by customer</h2>
+            </div>
+            <div class="cost-dashboard-actions">
+              <label for="cost-customer-filter">
+                <span>Portfolio view</span>
+                <select id="cost-customer-filter" disabled>
+                  <option>Loading customers...</option>
+                </select>
+              </label>
+              <span id="cost-status" class="storage-status">Calculating...</span>
+              <button id="refresh-costs" class="history-refresh" type="button" title="Refresh costs" aria-label="Refresh costs">&#8635;</button>
+            </div>
+          </header>
+
+          <dl id="cost-kpis" class="cost-kpis" aria-live="polite"></dl>
+
+          <div class="cost-visuals">
+            <section class="cost-composition" aria-labelledby="cost-composition-title">
+              <header>
+                <p class="eyebrow">Cost composition</p>
+                <h3 id="cost-composition-title">Where the estimate goes</h3>
+              </header>
+              <div id="cost-composition" class="cost-component-list"></div>
+            </section>
+            <section class="customer-cost-ranking" aria-labelledby="customer-cost-ranking-title">
+              <header>
+                <p class="eyebrow">Customer comparison</p>
+                <h3 id="customer-cost-ranking-title">Estimated cost ranking</h3>
+              </header>
+              <div id="customer-cost-bars" class="customer-cost-bars"></div>
+            </section>
+          </div>
+
+          <div class="cost-table-wrap">
+            <table class="cost-table">
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Documents</th>
+                  <th scope="col">Processing</th>
+                  <th scope="col">Retention storage</th>
+                  <th scope="col">Transactions</th>
+                  <th scope="col">Average / document</th>
+                  <th scope="col">Storage / month</th>
+                  <th scope="col">Estimated total</th>
+                </tr>
+              </thead>
+              <tbody id="cost-table-body"></tbody>
+            </table>
+          </div>
+          <p id="cost-methodology" class="cost-methodology"></p>
+        </section>
+
+        <section id="storage-portal" class="storage-portal" aria-labelledby="storage-title">
+          <header class="storage-header">
+            <div>
+              <p class="eyebrow">Azure storage portal</p>
+              <h2 id="storage-title">Customer storage map</h2>
+            </div>
+            <div class="storage-header-actions">
+              <span id="storage-status" class="storage-status">Connecting...</span>
+              <button id="refresh-storage" class="history-refresh" type="button" title="Refresh storage" aria-label="Refresh storage">&#8635;</button>
+            </div>
+          </header>
+          <dl id="storage-totals" class="storage-totals"></dl>
+          <div class="storage-map">
+            <div id="storage-account" class="storage-account-node"></div>
+            <div id="storage-customer-list" class="storage-customer-list" aria-live="polite">
+              <p class="history-status">Loading customer containers...</p>
+            </div>
+          </div>
+          <p id="storage-pricing-note" class="storage-pricing-note"></p>
+        </section>
+      </section>
+
+      <section id="processing-view" class="processing-view" aria-labelledby="processing-title" hidden>
+        <div class="document-animation" aria-hidden="true">
+          <div class="paper"><span></span><span></span><span></span><span></span></div>
+          <div class="scan-line"></div>
+        </div>
+        <p class="eyebrow">Document processing</p>
+        <h1 id="processing-title">Reading every page</h1>
+        <p id="processing-stage" class="processing-stage">Preparing your document...</p>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="progress-bar"></span>
+        </div>
+        <p id="progress-value">0%</p>
+        <div id="batch-progress" class="batch-progress" aria-label="Document progress"></div>
+      </section>
+
+      <section id="result-view" class="result-view" aria-labelledby="result-title" hidden>
+        <header class="result-header">
+          <div>
+            <div class="result-kicker">
+              <p class="eyebrow">Processing complete</p>
+              <span id="classification-category" class="classification-badge">Not classified</span>
+            </div>
+            <h1 id="result-title">Document result</h1>
+            <p id="result-summary"></p>
+          </div>
+          <div class="result-actions">
+            <button id="new-document" class="secondary-button" type="button">New document</button>
+            <a id="download-result" class="primary-button" href="#" download>Download JSON &#8595;</a>
+          </div>
+        </header>
+
+        <div class="result-toolbar">
+          <div class="tabs" role="tablist" aria-label="Result views">
+            <button class="tab active" role="tab" aria-selected="true" data-tab="content">Content</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="analysis">AI analysis</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="cost">Cost &amp; storage</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="text">Plain text</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="metadata">Metadata</button>
+            <button class="tab" role="tab" aria-selected="false" data-tab="warnings">Warnings</button>
+          </div>
+          <label class="search-box">
+            <span aria-hidden="true">&#8981;</span>
+            <span class="sr-only">Search extracted content</span>
+            <input id="search-input" type="search" placeholder="Search document" />
+          </label>
+        </div>
+
+        <div class="result-workspace">
+          <aside class="page-rail" aria-label="Document pages">
+            <div id="document-rail" class="rail-group" hidden>
+              <p>Documents</p>
+              <nav id="document-list"></nav>
+            </div>
+            <div class="rail-group">
+              <p>Pages</p>
+              <nav id="page-list"></nav>
+            </div>
+          </aside>
+          <article id="result-content" class="content-canvas" aria-live="polite"></article>
+        </div>
+      </section>
+    </main>
+
+    <div id="live-region" class="sr-only" aria-live="polite"></div>
+    <script src="/app.js?v=1.8.1" defer></script>
+    <script src="/support.js?v=1.8.1" defer></script>
+  </body>
+</html>

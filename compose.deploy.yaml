@@ -1,0 +1,176 @@
+name: papertrail
+
+x-app-environment: &app-environment
+  DATA_DIR: /data
+  REDIS_URL: redis://redis:6379/0
+  MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-50}
+  MAX_PDF_PAGES: ${MAX_PDF_PAGES:-500}
+  NATIVE_TEXT_MIN_CHARS: ${NATIVE_TEXT_MIN_CHARS:-30}
+  OCR_LANGUAGES: ${OCR_LANGUAGES:-eng}
+  OCR_DPI: ${OCR_DPI:-300}
+  JOB_TIMEOUT_SECONDS: ${JOB_TIMEOUT_SECONDS:-600}
+  MAX_BATCH_DOCUMENTS: ${MAX_BATCH_DOCUMENTS:-10}
+  AI_ENABLED: ${AI_ENABLED:-true}
+  OLLAMA_URL: http://ollama:11434
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+  OLLAMA_AVAILABLE_MODELS: ${OLLAMA_AVAILABLE_MODELS:-qwen2.5:1.5b,qwen2.5:0.5b}
+  MAX_ANALYSIS_MODELS: ${MAX_ANALYSIS_MODELS:-2}
+  AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-180}
+  AI_MAX_CHARACTERS: ${AI_MAX_CHARACTERS:-12000}
+  AZURE_STORAGE_ACCOUNT_NAME: ${AZURE_STORAGE_ACCOUNT_NAME:-}
+  AZURE_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID:-}
+  AZURE_RESOURCE_GROUP: ${AZURE_RESOURCE_GROUP:-}
+  AZURE_MANAGEMENT_IDENTITY_ENABLED: ${AZURE_MANAGEMENT_IDENTITY_ENABLED:-false}
+  AZURE_STORAGE_REGION: ${AZURE_STORAGE_REGION:-eastus}
+  AZURE_STORAGE_SKU: ${AZURE_STORAGE_SKU:-Standard_LRS}
+  AZURE_STORAGE_GB_MONTH_USD: ${AZURE_STORAGE_GB_MONTH_USD:-0.0208}
+  AZURE_WRITE_10K_USD: ${AZURE_WRITE_10K_USD:-0.065}
+  AZURE_READ_10K_USD: ${AZURE_READ_10K_USD:-0.005}
+  AZURE_OTHER_10K_USD: ${AZURE_OTHER_10K_USD:-0.004}
+  PROCESSING_VCPU_HOUR_USD: ${PROCESSING_VCPU_HOUR_USD:-0.096}
+  PROCESSING_MEMORY_GB_HOUR_USD: ${PROCESSING_MEMORY_GB_HOUR_USD:-0.012}
+  PROCESSING_MEMORY_GB: ${PROCESSING_MEMORY_GB:-2.0}
+  AZURE_AI_SAMPLE_INPUT_1M_TOKENS_USD: ${AZURE_AI_SAMPLE_INPUT_1M_TOKENS_USD:-0.15}
+  AZURE_AI_SAMPLE_OUTPUT_1M_TOKENS_USD: ${AZURE_AI_SAMPLE_OUTPUT_1M_TOKENS_USD:-0.60}
+
+services:
+  web:
+    image: ${PAPERTRAIL_WEB_IMAGE:-papertrail-web:1.6.0}
+    ports:
+      - "${WEB_PORT:-8081}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - frontend
+
+  api:
+    image: ${PAPERTRAIL_API_IMAGE:-papertrail-api:1.6.0}
+    env_file:
+      - path: .env
+        required: false
+      - path: ${PAPERTRAIL_AZURE_CREDENTIALS_DIR:-./.secrets}/azure.env
+        required: false
+    environment: *app-environment
+    volumes:
+      - document-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+      - cloud-egress
+
+  worker:
+    image: ${PAPERTRAIL_API_IMAGE:-papertrail-api:1.6.0}
+    command: ["celery", "-A", "app.tasks:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
+    env_file:
+      - path: .env
+        required: false
+      - path: ${PAPERTRAIL_AZURE_CREDENTIALS_DIR:-./.secrets}/azure.env
+        required: false
+    environment: *app-environment
+    volumes:
+      - document-data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+      - cloud-egress
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - backend
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a}
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_KEEP_ALIVE: 10m
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_NO_CLOUD: "true"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "OLLAMA_HOST=http://127.0.0.1:11434 ollama list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    depends_on:
+      ollama-model:
+        condition: service_completed_successfully
+    networks:
+      - backend
+
+  ollama-model:
+    image: ${OLLAMA_IMAGE:-ollama/ollama@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        ollama serve &
+        server_pid=$$!
+        until ollama list >/dev/null 2>&1; do sleep 1; done
+        pull_status=0
+        for model in $$(printf '%s' "$$OLLAMA_AVAILABLE_MODELS" | tr ',' ' '); do
+          if ! ollama pull "$$model"; then pull_status=1; fi
+        done
+        kill "$$server_pid"
+        wait "$$server_pid" || true
+        exit "$$pull_status"
+    environment:
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      OLLAMA_AVAILABLE_MODELS: ${OLLAMA_AVAILABLE_MODELS:-qwen2.5:1.5b,qwen2.5:0.5b}
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: "no"
+    networks:
+      - model-egress
+
+networks:
+  frontend:
+    name: ${PAPERTRAIL_FRONTEND_NETWORK:-papertrail_frontend}
+  backend:
+    name: ${PAPERTRAIL_BACKEND_NETWORK:-papertrail_backend}
+    internal: true
+  model-egress:
+    name: ${PAPERTRAIL_MODEL_NETWORK:-papertrail_model-egress}
+  cloud-egress:
+    name: ${PAPERTRAIL_CLOUD_NETWORK:-papertrail_cloud-egress}
+
+volumes:
+  document-data:
+    name: ${PAPERTRAIL_DOCUMENT_VOLUME:-papertrail_document-data}
+  redis-data:
+    name: ${PAPERTRAIL_REDIS_VOLUME:-papertrail_redis-data}
+  ollama-data:
+    name: ${PAPERTRAIL_OLLAMA_VOLUME:-papertrail_ollama-data}

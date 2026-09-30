@@ -1,0 +1,46 @@
+[project]
+name = "papertrail"
+version = "0.1.0"
+description = "Dockerized PDF to JSON processing service"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "azure-identity>=1.25,<2",
+    "azure-mgmt-storage>=25,<26",
+    "azure-storage-blob>=12.25,<13",
+    "celery[redis]>=5.4,<6",
+    "fastapi>=0.115,<1",
+    "jsonschema>=4.23,<5",
+    "pillow>=11,<13",
+    "pydantic-settings>=2.7,<3",
+    "pymupdf>=1.25,<2",
+    "python-multipart>=0.0.20,<1",
+    "pytesseract>=0.3.13,<1",
+    "uvicorn>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1",
+    "ipykernel>=6.29,<8",
+    "ipywidgets>=8.1,<9",
+    "pytest>=8.3,<10",
+    "ruff>=0.9,<1",
+    "tqdm>=4.67,<5",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

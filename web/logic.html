@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="See how Papertrail prepares extracted PDF text for local LLM analysis." />
+    <title>LLM Logic | Papertrail</title>
+    <link rel="stylesheet" href="/styles.css?v=1.9.0" />
+  </head>
+  <body class="technology-page logic-page">
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Papertrail home">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>Papertrail</span>
+      </a>
+      <div class="masthead-tools">
+        <nav class="masthead-nav" aria-label="Primary navigation">
+          <a class="nav-link" href="/">Processor</a>
+          <a class="nav-link" href="/tokens">Tokens</a>
+          <a class="nav-link" href="/technology">Technology</a>
+          <a class="nav-link" href="/logic" aria-current="page">LLM logic</a>
+        </nav>
+        <div class="service-state"><span></span> Local processing</div>
+      </div>
+    </header>
+
+    <main class="technology-main">
+      <section class="technology-intro logic-intro" aria-labelledby="logic-title">
+        <div>
+          <p class="eyebrow">Local AI decision path</p>
+          <h1 id="logic-title">How extracted text becomes grounded analysis.</h1>
+          <p class="lede">
+            The language model never reads the PDF directly. Papertrail extracts and labels
+            page text first, creates one bounded factual prompt, and sends the same evidence to
+            each selected local Qwen model before storing comparable structured responses.
+          </p>
+        </div>
+        <dl class="runtime-facts">
+          <div><dt>Models</dt><dd>Qwen2.5 1.5B + 0.5B</dd></div>
+          <div><dt>Context sent</dt><dd>Up to 12,000 characters</dd></div>
+          <div><dt>Temperature</dt><dd>0.1</dd></div>
+          <div><dt>Confidence</dt><dd>Deterministic input quality</dd></div>
+          <div><dt>Endpoint</dt><dd>Internal Ollama API</dd></div>
+        </dl>
+      </section>
+
+      <section class="technology-section" aria-labelledby="boundary-title">
+        <header class="section-heading">
+          <p class="eyebrow">Input boundary</p>
+          <h2 id="boundary-title">The model receives text, not the source document</h2>
+        </header>
+        <div class="logic-boundary">
+          <article>
+            <span class="boundary-label included">Included in the prompt</span>
+            <ul>
+              <li>Original display filename</li>
+              <li>Existing deterministic classification category</li>
+              <li>Extracted page text in page-number order</li>
+              <li>Explicit markers such as <code>[Page 3]</code></li>
+            </ul>
+          </article>
+          <article>
+            <span class="boundary-label excluded">Not sent to the model</span>
+            <ul>
+              <li>Raw PDF bytes or embedded files</li>
+              <li>Page images and OCR renderings</li>
+              <li>Text coordinates, font details, or checksums</li>
+              <li>Prior run history or other users' documents</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="technology-section" aria-labelledby="logic-flow-title">
+        <header class="section-heading">
+          <p class="eyebrow">Execution sequence</p>
+          <h2 id="logic-flow-title">Seven controlled transformations</h2>
+        </header>
+        <ol class="logic-flow">
+          <li>
+            <span class="logic-step">01</span>
+            <strong>Read extraction output</strong>
+            <p>The worker starts only after PyMuPDF or Tesseract has produced text for each page. Blank page text is omitted.</p>
+            <code>result.pages[].text</code>
+          </li>
+          <li>
+            <span class="logic-step">02</span>
+            <strong>Preserve page provenance</strong>
+            <p>Non-empty text is joined in document order with a page marker, so the model can distinguish content boundaries.</p>
+            <code>[Page n]\n{text}</code>
+          </li>
+          <li>
+            <span class="logic-step">03</span>
+            <strong>Apply the context ceiling</strong>
+            <p>The assembled string is cut to the configured character limit. The default is 12,000 characters per document.</p>
+            <code>AI_MAX_CHARACTERS</code>
+          </li>
+          <li>
+            <span class="logic-step">04</span>
+            <strong>Build a grounded instruction</strong>
+            <p>The prompt says to use only supplied text, avoid missing-fact inference, and return empty arrays when evidence is absent.</p>
+            <code>filename + category + text</code>
+          </li>
+          <li>
+            <span class="logic-step">05</span>
+            <strong>Generate locally</strong>
+            <p>The worker calls each selected model sequentially with identical text, temperature 0.1, streaming disabled, and the same output schema.</p>
+            <code>1-2 model calls</code>
+          </li>
+          <li>
+            <span class="logic-step">06</span>
+            <strong>Parse and normalize</strong>
+            <p>Papertrail parses the response as JSON, trims strings, rejects malformed entities, enforces list limits, and scores input evidence.</p>
+            <code>normalize + confidence</code>
+          </li>
+          <li>
+            <span class="logic-step">07</span>
+            <strong>Persist with provenance</strong>
+            <p>Every model result, metric, status, and warning is written into the versioned JSON result and durable SQLite record.</p>
+            <code>analysis + analyses[]</code>
+          </li>
+        </ol>
+      </section>
+
+      <section class="technology-section" aria-labelledby="confidence-title">
+        <header class="section-heading">
+          <p class="eyebrow">Evidence confidence</p>
+          <h2 id="confidence-title">A pipeline-quality signal, not a truth probability</h2>
+        </header>
+        <div class="confidence-formula">
+          <article>
+            <span>70%</span>
+            <h3>Extraction quality</h3>
+            <p>Text-length-weighted confidence from native or OCR blocks. Native text starts at 100%; current OCR blocks start at 85%.</p>
+          </article>
+          <div class="formula-operator" aria-hidden="true">+</div>
+          <article>
+            <span>30%</span>
+            <h3>Context coverage</h3>
+            <p>The share of assembled page-marked text included before the configured character ceiling truncates the prompt.</p>
+          </article>
+          <div class="formula-result">
+            <small>Stored result</small>
+            <strong>0-100%</strong>
+            <p><b>High</b> 85-100 · <b>Medium</b> 65-84 · <b>Low</b> 0-64</p>
+          </div>
+        </div>
+        <p class="confidence-caveat">A high score means the model saw high-quality extracted text with strong context coverage. It does not verify generated statements; compare insights with the extracted source text.</p>
+      </section>
+
+      <section class="technology-section" aria-labelledby="prompt-title">
+        <header class="section-heading">
+          <p class="eyebrow">Prompt contract</p>
+          <h2 id="prompt-title">Evidence and instructions stay visibly separate</h2>
+        </header>
+        <div class="prompt-layout">
+          <pre class="prompt-template" aria-label="Simplified Papertrail prompt template"><code>Analyze the document below using only its supplied text.
+Do not infer missing facts.
+
+Return:
+  concise factual summary
+  up to 5 key points
+  up to 10 named entities
+  up to 5 explicit action items
+
+Filename: {filename}
+Existing rule-based category: {category}
+
+DOCUMENT TEXT
+[Page 1]
+{extracted text}</code></pre>
+          <dl class="output-contract">
+            <div><dt>summary</dt><dd>One trimmed string</dd></div>
+            <div><dt>key_points</dt><dd>String array, maximum 5</dd></div>
+            <div><dt>entities</dt><dd>Name and type objects, maximum 10</dd></div>
+            <div><dt>action_items</dt><dd>String array, maximum 5</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="technology-section" aria-labelledby="states-title">
+        <header class="section-heading">
+          <p class="eyebrow">Outcome logic</p>
+          <h2 id="states-title">Extraction remains useful when AI cannot run</h2>
+        </header>
+        <div class="state-table-wrap">
+          <table class="stack-table state-table">
+            <thead><tr><th scope="col">State</th><th scope="col">Trigger</th><th scope="col">Stored behavior</th></tr></thead>
+            <tbody>
+              <tr><td>completed</td><td>Ollama returns a JSON object</td><td>Normalized insights and model provenance are stored</td></tr>
+              <tr><td>skipped</td><td>No extracted page contains text</td><td>A reason is recorded and Ollama is not called</td></tr>
+              <tr><td>failed</td><td>Timeout, connection, decoding, or response-shape error</td><td>The document completes with an <code>AI_ANALYSIS_FAILED</code> warning</td></tr>
+              <tr><td>disabled</td><td><code>AI_ENABLED</code> is false</td><td>Extraction and classification complete without model analysis</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="technology-section operations-section" aria-labelledby="guardrails-title">
+        <header class="section-heading">
+          <p class="eyebrow">Trust boundaries</p>
+          <h2 id="guardrails-title">What this logic does and does not guarantee</h2>
+        </header>
+        <div class="operations-layout">
+          <p class="operations-lede">The model is an interpretation layer over already extracted evidence. Classification remains deterministic, and the original text stays available beside every generated insight.</p>
+          <dl class="operations-list">
+            <div><dt>Network</dt><dd>Internal Docker network</dd></div>
+            <div><dt>Grounding</dt><dd>Prompt instruction</dd></div>
+            <div><dt>Classification</dt><dd>Rule based, before LLM</dd></div>
+            <div><dt>Output control</dt><dd>Schema plus normalization</dd></div>
+            <div><dt>Reliability</dt><dd>Review against source text</dd></div>
+            <div><dt>Retrieval</dt><dd>No vector database</dd></div>
+            <div><dt>Training</dt><dd>No weight updates</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <footer class="technology-footer">
+        <div><p class="eyebrow">See it in context</p><h2>Review the full processing stack.</h2></div>
+        <a class="primary-button" href="/technology">Open technology <span aria-hidden="true">&#8594;</span></a>
+      </footer>
+    </main>
+    <script src="/support.js?v=1.8.1" defer></script>
+  </body>
+</html>

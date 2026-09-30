@@ -1,0 +1,274 @@
+{
+  "schema_version": "1.0",
+  "document": {
+    "id": "a15c4c25-7e1f-41fe-972f-c6282e58783f",
+    "filename": "northstar-operations.pdf",
+    "media_type": "application/pdf",
+    "sha256": "61624ec2c3efeff5611fddb0f7cedfe6fadf76d7f22fdda27533931899aeec78",
+    "size_bytes": 3923,
+    "page_count": 2,
+    "metadata": {
+      "title": "Northstar Operations Review",
+      "author": "Papertrail Demo",
+      "subject": null
+    }
+  },
+  "processing": {
+    "job_id": "24f44cb4-8e50-4168-bac9-4636a38030c1",
+    "status": "completed",
+    "started_at": "2026-09-29T16:06:18.835910Z",
+    "completed_at": "2026-09-29T16:06:18.863394Z",
+    "duration_ms": 29,
+    "ocr_languages": [
+      "eng"
+    ],
+    "warnings": []
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "width": 612.0,
+      "height": 792.0,
+      "rotation": 0,
+      "text_source": "native",
+      "text": "NORTHSTAR\n\nOperations Review\n\nThird Quarter 2026\n\nExecutive summary\n\nFulfillment time improved by 18 percent while customer satisfaction reached 94 percent. The program\n\ncompleted 12,480 orders across three regional facilities.\n\nKey measures\n\nOrders processed: 12,480\n\nOn-time delivery: 96.2%\n\nAverage cycle time: 2.8 days",
+      "blocks": [
+        {
+          "id": "p1-b1",
+          "type": "paragraph",
+          "text": "NORTHSTAR",
+          "bbox": [
+            56.0,
+            60.17,
+            124.44,
+            75.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b2",
+          "type": "heading",
+          "text": "Operations Review",
+          "bbox": [
+            56.0,
+            89.9,
+            292.52,
+            128.37
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b3",
+          "type": "heading",
+          "text": "Third Quarter 2026",
+          "bbox": [
+            56.0,
+            138.95,
+            174.27,
+            158.19
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b4",
+          "type": "heading",
+          "text": "Executive summary",
+          "bbox": [
+            56.0,
+            200.65,
+            213.03,
+            225.38
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b5",
+          "type": "paragraph",
+          "text": "Fulfillment time improved by 18 percent while customer satisfaction reached 94 percent. The program",
+          "bbox": [
+            56.0,
+            245.0,
+            549.35,
+            260.11
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b6",
+          "type": "paragraph",
+          "text": "completed 12,480 orders across three regional facilities.",
+          "bbox": [
+            56.0,
+            262.74,
+            328.67,
+            277.85
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b7",
+          "type": "heading",
+          "text": "Key measures",
+          "bbox": [
+            56.0,
+            350.65,
+            171.04,
+            375.38
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b8",
+          "type": "paragraph",
+          "text": "Orders processed: 12,480",
+          "bbox": [
+            72.0,
+            393.17,
+            199.17,
+            408.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b9",
+          "type": "paragraph",
+          "text": "On-time delivery: 96.2%",
+          "bbox": [
+            72.0,
+            421.17,
+            189.37,
+            436.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p1-b10",
+          "type": "paragraph",
+          "text": "Average cycle time: 2.8 days",
+          "bbox": [
+            72.0,
+            449.17,
+            212.61,
+            464.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        }
+      ],
+      "tables": [],
+      "images": []
+    },
+    {
+      "page_number": 2,
+      "width": 612.0,
+      "height": 792.0,
+      "rotation": 0,
+      "text_source": "native",
+      "text": "Regional performance\n\nEast led growth at 14 percent, followed by Central at 9 percent. West remained stable while its new\n\nautomation line completed commissioning.\n\nNext actions\n\n1. Expand the East shift pilot.\n\n2. Complete West automation validation.\n\n3. Review carrier capacity before peak season.",
+      "blocks": [
+        {
+          "id": "p2-b1",
+          "type": "heading",
+          "text": "Regional performance",
+          "bbox": [
+            56.0,
+            54.05,
+            311.76,
+            89.77
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p2-b2",
+          "type": "paragraph",
+          "text": "East led growth at 14 percent, followed by Central at 9 percent. West remained stable while its new",
+          "bbox": [
+            56.0,
+            125.0,
+            537.77,
+            140.11
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p2-b3",
+          "type": "paragraph",
+          "text": "automation line completed commissioning.",
+          "bbox": [
+            56.0,
+            142.74,
+            263.24,
+            157.85
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p2-b4",
+          "type": "heading",
+          "text": "Next actions",
+          "bbox": [
+            56.0,
+            265.65,
+            155.04,
+            290.38
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p2-b5",
+          "type": "paragraph",
+          "text": "1. Expand the East shift pilot.",
+          "bbox": [
+            72.0,
+            308.17,
+            214.47,
+            323.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p2-b6",
+          "type": "paragraph",
+          "text": "2. Complete West automation validation.",
+          "bbox": [
+            72.0,
+            338.17,
+            269.47,
+            353.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        },
+        {
+          "id": "p2-b7",
+          "type": "paragraph",
+          "text": "3. Review carrier capacity before peak season.",
+          "bbox": [
+            72.0,
+            368.17,
+            300.65,
+            383.29
+          ],
+          "confidence": 1.0,
+          "source": "native"
+        }
+      ],
+      "tables": [],
+      "images": []
+    }
+  ]
+}

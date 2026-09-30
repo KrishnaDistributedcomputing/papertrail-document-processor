@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Review Papertrail token usage and local model compute cost by model and customer." />
+    <title>Token Usage &amp; Cost | Papertrail</title>
+    <link rel="stylesheet" href="/styles.css?v=1.9.0" />
+  </head>
+  <body class="token-page">
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Papertrail home">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>Papertrail</span>
+      </a>
+      <div class="masthead-tools">
+        <nav class="masthead-nav" aria-label="Primary navigation">
+          <a class="nav-link" href="/">Processor</a>
+          <a class="nav-link" href="/#cost-dashboard">Costs</a>
+          <a class="nav-link" href="/tokens" aria-current="page">Tokens</a>
+          <a class="nav-link" href="/technology">Technology</a>
+          <a class="nav-link" href="/logic">LLM logic</a>
+        </nav>
+        <div class="service-state"><span></span> Local processing</div>
+      </div>
+    </header>
+
+    <main class="token-main">
+      <section class="token-overview" aria-labelledby="token-title">
+        <div class="token-title-block">
+          <div>
+            <p class="eyebrow">Local model observability</p>
+            <h1 id="token-title">Token usage &amp; cost</h1>
+            <p class="lede">
+              Inspect persisted Ollama usage, compare models and customers, and
+              attribute local model runtime without inventing a per-token bill.
+            </p>
+          </div>
+          <div class="token-controls">
+            <label for="token-customer-filter">
+              <span>Customer scope</span>
+              <select id="token-customer-filter" disabled>
+                <option value="all">All customers</option>
+              </select>
+            </label>
+            <button id="refresh-tokens" class="history-refresh" type="button" title="Refresh token usage" aria-label="Refresh token usage">&#8635;</button>
+            <span id="token-status" class="storage-status" data-status="pending">Loading</span>
+          </div>
+        </div>
+
+        <dl id="token-kpis" class="token-kpis" aria-live="polite">
+          <div><dt>Total tokens</dt><dd>&mdash;</dd></div>
+          <div><dt>Prompt tokens</dt><dd>&mdash;</dd></div>
+          <div><dt>Output tokens</dt><dd>&mdash;</dd></div>
+          <div><dt>Model calls</dt><dd>&mdash;</dd></div>
+          <div><dt>Azure AI what-if</dt><dd>&mdash;</dd></div>
+          <div><dt>Local model compute</dt><dd>&mdash;</dd></div>
+        </dl>
+        <p id="token-coverage" class="token-coverage">Reading persisted model telemetry...</p>
+      </section>
+
+      <section class="token-cost-boundary" aria-label="Token and compute cost boundary">
+        <article class="token-metered-cost">
+          <p class="eyebrow">Actual local billing</p>
+          <strong id="token-charge">$0.00</strong>
+          <h2>Metered token charge</h2>
+          <p id="token-charge-copy">The selected models run through local Ollama, with no input or output token API rate.</p>
+        </article>
+        <article class="token-azure-cost">
+          <p class="eyebrow">Illustrative Azure AI</p>
+          <strong id="azure-ai-cost">$0.00</strong>
+          <h2>Token cost what-if</h2>
+          <p id="azure-ai-cost-copy">Recorded prompt and output tokens multiplied by configurable sample Azure rates.</p>
+        </article>
+        <article class="token-compute-cost">
+          <p class="eyebrow">Runtime attribution</p>
+          <strong id="token-compute">$0.00</strong>
+          <h2>Local model compute estimate</h2>
+          <p id="token-compute-copy">Recorded model runtime is valued at the configured vCPU and memory rate.</p>
+        </article>
+        <p class="token-boundary-note">
+          Azure AI is a dummy what-if based on sample rates, not billed usage or
+          a live retail quote. Local compute is operational attribution, not an
+          extra charge to add to Azure Cost Management.
+        </p>
+      </section>
+
+      <section class="token-section" aria-labelledby="token-comparison-title">
+        <header class="section-heading">
+          <p class="eyebrow">Usage comparison</p>
+          <h2 id="token-comparison-title">See where tokens and runtime go</h2>
+        </header>
+        <div class="token-comparison-grid">
+          <section class="token-comparison-panel" aria-labelledby="model-usage-title">
+            <header>
+              <h3 id="model-usage-title">By model</h3>
+              <p>Completed calls using the same persisted telemetry.</p>
+            </header>
+            <div class="token-table-wrap">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Model</th>
+                    <th scope="col">Calls</th>
+                    <th scope="col">Tokens</th>
+                    <th scope="col">Runtime</th>
+                    <th scope="col">Azure what-if</th>
+                    <th scope="col">Local compute</th>
+                  </tr>
+                </thead>
+                <tbody id="model-usage-body">
+                  <tr><td colspan="6">Loading model usage...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="token-comparison-panel" aria-labelledby="customer-usage-title">
+            <header>
+              <h3 id="customer-usage-title">By customer</h3>
+              <p>Exact totals within the active customer scope.</p>
+            </header>
+            <div class="token-table-wrap">
+              <table class="token-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Documents</th>
+                    <th scope="col">Tokens</th>
+                    <th scope="col">Runtime</th>
+                    <th scope="col">Azure what-if</th>
+                    <th scope="col">Local compute</th>
+                  </tr>
+                </thead>
+                <tbody id="customer-usage-body">
+                  <tr><td colspan="6">Loading customer usage...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="token-section" aria-labelledby="recent-token-title">
+        <header class="section-heading token-section-heading">
+          <div>
+            <p class="eyebrow">Call ledger</p>
+            <h2 id="recent-token-title">Recent model calls</h2>
+          </div>
+          <span id="token-scope-label">All customers</span>
+        </header>
+        <div class="token-table-wrap token-ledger-wrap">
+          <table class="token-table token-ledger">
+            <thead>
+              <tr>
+                <th scope="col">Completed</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Document</th>
+                <th scope="col">Model</th>
+                <th scope="col">Prompt</th>
+                <th scope="col">Output</th>
+                <th scope="col">Total</th>
+                <th scope="col">Runtime</th>
+                <th scope="col">Azure what-if</th>
+                <th scope="col">Local compute</th>
+              </tr>
+            </thead>
+            <tbody id="recent-token-body">
+              <tr><td colspan="10">Loading recent calls...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="token-section token-methodology" aria-labelledby="token-method-title">
+        <header class="section-heading">
+          <p class="eyebrow">Pricing method</p>
+          <h2 id="token-method-title">Compare the two cost methods</h2>
+        </header>
+        <div class="token-method-grid">
+          <div class="token-formula" id="token-formula">
+            <div><span>Illustrative Azure AI tokens</span><strong>&mdash;</strong><b>= &mdash; Azure what-if</b></div>
+            <div><span>Recorded local model runtime</span><strong>&mdash;</strong><b>= &mdash; local compute</b></div>
+          </div>
+          <dl class="token-rate-list">
+            <div><dt>Local Ollama tokens</dt><dd id="local-token-rate">$0 / 1M</dd></div>
+            <div><dt>Sample Azure input</dt><dd id="azure-input-token-rate">&mdash;</dd></div>
+            <div><dt>Sample Azure output</dt><dd id="azure-output-token-rate">&mdash;</dd></div>
+            <div><dt>vCPU rate</dt><dd id="vcpu-rate">&mdash;</dd></div>
+            <div><dt>Memory rate</dt><dd id="memory-rate">&mdash;</dd></div>
+            <div><dt>Effective compute</dt><dd id="effective-rate">&mdash;</dd></div>
+          </dl>
+        </div>
+        <p id="token-method-note" class="token-method-note">
+          Only completed model calls with persisted Ollama telemetry are counted.
+        </p>
+      </section>
+    </main>
+
+    <div id="live-region" class="sr-only" aria-live="polite"></div>
+    <script src="/tokens.js?v=1.1.0" defer></script>
+    <script src="/support.js?v=1.8.1" defer></script>
+  </body>
+</html>

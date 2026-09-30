@@ -1,0 +1,54 @@
+{
+  "schema_version": "1.0",
+  "document": {
+    "id": "d99eb8b6-181a-44d1-8f7a-c14df1c79eb9",
+    "filename": "scanned-invoice.pdf",
+    "media_type": "application/pdf",
+    "sha256": "143a71e98f5e95c1b7e2175d86404a4bc7b9bbe4bd0226d167b5350973986ca1",
+    "size_bytes": 6483568,
+    "page_count": 1,
+    "metadata": {
+      "title": null,
+      "author": null,
+      "subject": null
+    }
+  },
+  "processing": {
+    "job_id": "17fc268c-b589-41a2-83c4-fb3c51287879",
+    "status": "completed",
+    "started_at": "2026-09-29T16:10:32.234067Z",
+    "completed_at": "2026-09-29T16:10:39.470433Z",
+    "duration_ms": 7248,
+    "ocr_languages": [
+      "eng"
+    ],
+    "warnings": []
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "width": 900.0,
+      "height": 600.0,
+      "rotation": 0,
+      "text_source": "ocr",
+      "text": "SCANNED INVOICE\n\nInvoice: INV-2026-0917\nSupplier: Meridian Office Supply\n\nDocument scanner maintenance $1,280.00\nOCR calibration service $420.00\n\nTOTAL: $1,700.00\n\nPayment due 30 October 2026",
+      "blocks": [
+        {
+          "id": "p1-b1",
+          "type": "paragraph",
+          "text": "SCANNED INVOICE\n\nInvoice: INV-2026-0917\nSupplier: Meridian Office Supply\n\nDocument scanner maintenance $1,280.00\nOCR calibration service $420.00\n\nTOTAL: $1,700.00\n\nPayment due 30 October 2026",
+          "bbox": [
+            0.0,
+            0.0,
+            900.0,
+            600.0
+          ],
+          "confidence": 0.85,
+          "source": "ocr"
+        }
+      ],
+      "tables": [],
+      "images": []
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Technical architecture and processing details for Papertrail." />
+    <title>Technology | Papertrail</title>
+    <link rel="stylesheet" href="/styles.css?v=1.9.0" />
+  </head>
+  <body class="technology-page">
+    <header class="masthead">
+      <a class="brand" href="/" aria-label="Papertrail home">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <span>Papertrail</span>
+      </a>
+      <div class="masthead-tools">
+        <nav class="masthead-nav" aria-label="Primary navigation">
+          <a class="nav-link" href="/">Processor</a>
+          <a class="nav-link" href="/tokens">Tokens</a>
+          <a class="nav-link" href="/technology" aria-current="page">Technology</a>
+          <a class="nav-link" href="/logic">LLM logic</a>
+        </nav>
+        <div class="service-state"><span></span> Local processing</div>
+      </div>
+    </header>
+
+    <main class="technology-main">
+      <section class="technology-intro" aria-labelledby="technology-title">
+        <div>
+          <p class="eyebrow">Technology reference</p>
+          <h1 id="technology-title">How Papertrail reads a PDF.</h1>
+          <p class="lede">
+            A local, inspectable pipeline accepts document batches, chooses native extraction
+            or OCR page by page, and uses a Docker-hosted model to generate grounded insights.
+          </p>
+        </div>
+        <dl class="runtime-facts">
+          <div><dt>Runtime</dt><dd>Python 3.13 on Linux</dd></div>
+          <div><dt>Output</dt><dd>JSON schema 1.2</dd></div>
+          <div><dt>Local AI</dt><dd>Qwen2.5 1.5B + 0.5B</dd></div>
+          <div><dt>Execution</dt><dd>Local Docker services</dd></div>
+        </dl>
+      </section>
+
+      <section class="technology-section" aria-labelledby="architecture-title">
+        <header class="section-heading">
+          <p class="eyebrow">Request path</p>
+          <h2 id="architecture-title">Each document, five controlled stages</h2>
+        </header>
+        <div class="architecture-flow" role="list" aria-label="Document processing architecture">
+          <article class="architecture-node" role="listitem">
+            <span>01</span><strong>Browser + Nginx</strong>
+            <p>Accepts up to 10 PDFs and proxies same-origin API requests.</p>
+          </article>
+          <article class="architecture-node" role="listitem">
+            <span>02</span><strong>FastAPI</strong>
+            <p>Validates limits, stores the source, and creates a job.</p>
+          </article>
+          <article class="architecture-node" role="listitem">
+            <span>03</span><strong>Redis</strong>
+            <p>Queues active work while SQLite retains every run and result.</p>
+          </article>
+          <article class="architecture-node" role="listitem">
+            <span>04</span><strong>Celery worker</strong>
+            <p>Runs PyMuPDF, Tesseract OCR, classification, and Ollama analysis.</p>
+          </article>
+          <article class="architecture-node" role="listitem">
+            <span>05</span><strong>Versioned JSON</strong>
+            <p>Persists text, blocks, coordinates, provenance, and warnings.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="technology-section decision-section" aria-labelledby="decisions-title">
+        <header class="section-heading">
+          <p class="eyebrow">Processing decisions</p>
+          <h2 id="decisions-title">The worker keeps every decision visible</h2>
+        </header>
+        <div class="decision-grid">
+          <article>
+            <span class="decision-number">01</span>
+            <h3>Native text first</h3>
+            <p>PyMuPDF reads ordered spans, font sizes, page geometry, and coordinates. Pages with at least 30 usable characters remain native.</p>
+          </article>
+          <article>
+            <span class="decision-number">02</span>
+            <h3>OCR only when needed</h3>
+            <p>Low-text pages render at 300 DPI and pass through the local Tesseract English model. The result records <code>ocr</code> as its source.</p>
+          </article>
+          <article>
+            <span class="decision-number">03</span>
+            <h3>Transparent classification</h3>
+            <p>Weighted phrase rules use the filename, metadata, and extracted text. JSON includes the category, method, and matched terms.</p>
+          </article>
+          <article>
+            <span class="decision-number">04</span>
+            <h3>Grounded local analysis</h3>
+            <p>One or two selected Qwen2.5 models receive the same bounded text and return comparable structured results.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="technology-section stack-section" aria-labelledby="stack-title">
+        <header class="section-heading">
+          <p class="eyebrow">Stack inventory</p>
+          <h2 id="stack-title">Open components with narrow responsibilities</h2>
+        </header>
+        <div class="stack-table-wrap">
+          <table class="stack-table">
+            <thead><tr><th scope="col">Layer</th><th scope="col">Technology</th><th scope="col">Responsibility</th></tr></thead>
+            <tbody>
+              <tr><td>Edge</td><td>Nginx 1.27 Alpine</td><td>Static UI, upload limits, API proxy, security headers</td></tr>
+              <tr><td>API</td><td>FastAPI + Uvicorn</td><td>Validation, job lifecycle, result and download endpoints</td></tr>
+              <tr><td>Queue</td><td>Celery + Redis 7.4</td><td>Asynchronous execution, progress, persisted queue state</td></tr>
+              <tr><td>History</td><td>SQLite 3</td><td>Durable run state, metadata, and complete JSON results</td></tr>
+              <tr><td>PDF</td><td>PyMuPDF 1.25+</td><td>Native text, layout blocks, metadata, page rendering</td></tr>
+              <tr><td>OCR</td><td>Tesseract 5 + tessdata_best</td><td>Local recognition for scanned or low-text pages</td></tr>
+              <tr><td>AI</td><td>Ollama + Qwen2.5 1.5B / 0.5B</td><td>Selectable CPU-local analysis and side-by-side comparison</td></tr>
+              <tr><td>Contract</td><td>JSON schema 1.2</td><td>Versioned, machine-readable document output</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="technology-section operations-section" aria-labelledby="operations-title">
+        <header class="section-heading">
+          <p class="eyebrow">Runtime boundaries</p>
+          <h2 id="operations-title">Local data, isolated services</h2>
+        </header>
+        <div class="operations-layout">
+          <p class="operations-lede">Documents never leave the Docker project. The worker, Redis, and Ollama runtime use an internal network, while named volumes retain documents, SQLite history, results, queue data, and the model.</p>
+          <dl class="operations-list">
+            <div><dt>Batch ceiling</dt><dd>10 documents</dd></div>
+            <div><dt>Upload ceiling</dt><dd>50 MB</dd></div>
+            <div><dt>Page ceiling</dt><dd>500 pages</dd></div>
+            <div><dt>Worker deadline</dt><dd>600 seconds</dd></div>
+            <div><dt>OCR models</dt><dd>English + orientation</dd></div>
+            <div><dt>AI context</dt><dd>12,000 characters</dd></div>
+            <div><dt>Run history</dt><dd>SQLite on document volume</dd></div>
+            <div><dt>Categories</dt><dd>8 deterministic outcomes</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <footer class="technology-footer">
+        <div><p class="eyebrow">Ready to process</p><h2>Put the pipeline to work.</h2></div>
+        <a class="primary-button" href="/">Open processor <span aria-hidden="true">&#8594;</span></a>
+      </footer>
+    </main>
+    <script src="/support.js?v=1.8.1" defer></script>
+  </body>
+</html>
