@@ -24,6 +24,23 @@ entities, and action items. Selecting both models produces side-by-side output,
 runtime, token, and confidence comparisons. SQLite retains run history, key
 metadata, and complete results. Documents and prompts remain inside Docker.
 
+## Application previews
+
+### Process documents
+
+![Papertrail document processor with customer and model selection](docs/images/papertrail-processor.png)
+
+### Review token usage and cost
+
+![Papertrail token usage with local and illustrative Azure AI costs](docs/images/papertrail-token-cost.png)
+
+<details>
+<summary>View the complete customer cost dashboard</summary>
+
+![Papertrail Azure cost dashboard by customer](docs/images/papertrail-customer-costs.png)
+
+</details>
+
 ## Run as a Docker project
 
 Docker Desktop must be running. Create the local environment file, download and
