@@ -212,7 +212,7 @@ main() {
     run_published_compose "${project_directory}" "${published_manifest}" \
       config --quiet
     if run_published_compose "${project_directory}" "${published_manifest}" \
-      pull --quiet web api worker; then
+      pull --quiet web api worker >/dev/null 2>&1; then
       active_manifest="${published_manifest}"
     else
       echo "Published images are unavailable. Building from public source instead ..."

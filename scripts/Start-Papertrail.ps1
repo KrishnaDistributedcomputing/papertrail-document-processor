@@ -166,7 +166,12 @@ function Invoke-Compose {
 
     Push-Location $ProjectDirectory
     try {
-        & docker compose -f $Manifest @Arguments
+        if ($AllowFailure) {
+            & docker compose -f $Manifest @Arguments *> $null
+        }
+        else {
+            & docker compose -f $Manifest @Arguments
+        }
         $script:LastComposeExitCode = $LASTEXITCODE
     }
     finally {
