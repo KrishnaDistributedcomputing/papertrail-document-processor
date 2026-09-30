@@ -1,6 +1,6 @@
 ---
 title: Papertrail Deployment Guide
-description: Deploy Papertrail from source or private GitHub Container Registry images on a Docker host
+description: Deploy Papertrail automatically or operate it directly with Docker Compose
 author: Engineering
 ms.date: 2026-09-30
 ms.topic: how-to
@@ -12,16 +12,45 @@ keywords:
 estimated_reading_time: 8
 ---
 
+## One-command deployment
+
+Docker must be installed and running. The launcher handles everything else:
+source download, image selection, source-build fallback, service startup,
+health checks, and opening the portal.
+
+On Windows, run this command in PowerShell 7:
+
+```powershell
+irm https://raw.githubusercontent.com/KrishnaDistributedcomputing/papertrail-document-processor/main/scripts/Start-Papertrail.ps1 | iex
+```
+
+On Linux or macOS, run:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KrishnaDistributedcomputing/papertrail-document-processor/main/scripts/start-papertrail.sh | bash
+```
+
+No repository clone, `.env` file, Azure account, or registry login is required.
+Remote installations are stored in `~/.papertrail`. The launcher first tries
+the smaller image-only deployment. If the application packages are not
+available to the current Docker client, it builds the same application from
+the public source without prompting for credentials.
+
+Running the launcher again is idempotent. Existing named volumes preserve
+documents, generated JSON, SQLite history, Redis state, and downloaded Ollama
+models across container replacement and deployment-mode changes.
+
 ## Deployment options
 
 Papertrail runs as six Docker Compose services. Deploy it from source when the
 host can build images, or use the image-only manifest with images published by
 GitHub Actions.
 
-| Option | Manifest | Use when |
-|--------|----------|----------|
-| Source build | `compose.yaml` | Developing locally or building on the host |
-| Published images | `compose.deploy.yaml` | Running a repeatable release on a Docker host |
+| Option           | Manifest              | Use when                                           |
+|------------------|-----------------------|----------------------------------------------------|
+| Automatic        | Selected by launcher  | Installing with no application configuration       |
+| Source build     | `compose.yaml`        | Developing locally or building on the host         |
+| Published images | `compose.deploy.yaml` | Running images available to the Docker client      |
 
 The deployment retains documents, generated JSON, SQLite history, Redis data,
 and downloaded Ollama models in named Docker volumes.
@@ -30,29 +59,40 @@ and downloaded Ollama models in named Docker volumes.
 
 Install the following software on the deployment host:
 
-* Git
 * Docker Engine or Docker Desktop with Docker Compose v2
-* PowerShell 7 only when using `scripts/Get-OcrModels.ps1`
+* PowerShell 7 for the Windows launcher
+* Bash, `curl`, and `tar` for the Linux and macOS launcher
 * At least 8 GB RAM and 10 GB free disk space for both local Qwen models,
   container images, and initial runtime data
 
 The public web service listens on port `8081` by default. The API, queue, and
 model services stay on private Docker networks.
 
-## Clone and configure the project
+## Run from a clone
 
-Clone the private repository and create the local configuration:
+The launchers detect and use an existing repository clone:
 
 ```powershell
 git clone https://github.com/KrishnaDistributedcomputing/papertrail-document-processor.git
 Set-Location papertrail-document-processor
+./scripts/Start-Papertrail.ps1
+```
+
+On Linux or macOS, run `./scripts/start-papertrail.sh` after cloning. Use
+`-SourceBuild` in PowerShell or `--source` in Bash to build locally without
+checking published images.
+
+No configuration file is required. To customize the deployment, create one
+from the supplied example:
+
+```powershell
 Copy-Item .env.example .env
 ```
 
 Do not commit `.env`, `.secrets/`, uploaded documents, database files, or
 backups. The repository ignore rules exclude these paths.
 
-Review `.env` before deployment. At minimum, confirm these values:
+The default resource names are suitable for a single Papertrail installation:
 
 ```dotenv
 WEB_PORT=8081
@@ -64,7 +104,8 @@ PAPERTRAIL_OLLAMA_VOLUME=papertrail_ollama-data
 ## Deploy from source
 
 The repository includes the verified OCR model files and vendored Python
-packages needed by the offline application image build.
+packages needed by the offline application image build. Run this command only
+when bypassing the launcher:
 
 ```powershell
 docker compose up --detach --build --wait
@@ -74,13 +115,18 @@ The first deployment downloads the configured Qwen models through the
 one-shot `ollama-model` service. This can take several minutes. Later starts
 reuse the `papertrail_ollama-data` volume.
 
-## Deploy published GitHub images
+## Deploy published GitHub images directly
 
 The `Test and publish container images` workflow tests the project and
 publishes API and web images to GitHub Container Registry after changes reach
 `main`. Version tags such as `v1.0.0` produce matching immutable image tags.
 
-For a private package, create a GitHub personal access token with
+Direct image deployment requires the packages to be anonymously readable or
+the Docker client to already have GitHub Container Registry access. The
+automatic launcher does not require this access because it falls back to a
+source build.
+
+For a restricted package, create a GitHub personal access token with
 `read:packages`, place it in the current shell, and authenticate Docker. Do not
 write the token to project files.
 
@@ -88,22 +134,16 @@ write the token to project files.
 $env:GHCR_TOKEN | docker login ghcr.io --username KrishnaDistributedcomputing --password-stdin
 ```
 
-Set the published image references in `.env`:
-
-```dotenv
-PAPERTRAIL_API_IMAGE=ghcr.io/krishnadistributedcomputing/papertrail-document-processor-api:latest
-PAPERTRAIL_WEB_IMAGE=ghcr.io/krishnadistributedcomputing/papertrail-document-processor-web:latest
-```
-
-Pull and start the image-only deployment:
+The image-only manifest already defaults to the `latest` API and web packages.
+Pull and start it with:
 
 ```powershell
 docker compose -f compose.deploy.yaml pull
 docker compose -f compose.deploy.yaml up --detach --wait
 ```
 
-For repeatable production deployment, replace `latest` with a release tag such
-as `v1.0.0` in both image references.
+For repeatable production deployment, set `PAPERTRAIL_API_IMAGE` and
+`PAPERTRAIL_WEB_IMAGE` in `.env` to release tags such as `v1.0.0`.
 
 ## Configure Azure storage
 

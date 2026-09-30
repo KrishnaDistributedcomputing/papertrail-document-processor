@@ -24,6 +24,35 @@ entities, and action items. Selecting both models produces side-by-side output,
 runtime, token, and confidence comparisons. SQLite retains run history, key
 metadata, and complete results. Documents and prompts remain inside Docker.
 
+## Start with one command
+
+Install and start Papertrail without cloning the repository, creating an
+environment file, or signing in to a container registry. Docker Desktop or
+Docker Engine with Compose v2 must already be installed and running.
+
+### Windows
+
+Run in PowerShell 7:
+
+```powershell
+irm https://raw.githubusercontent.com/KrishnaDistributedcomputing/papertrail-document-processor/main/scripts/Start-Papertrail.ps1 | iex
+```
+
+### Linux and macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/KrishnaDistributedcomputing/papertrail-document-processor/main/scripts/start-papertrail.sh | bash
+```
+
+The launcher stores a remote installation in `~/.papertrail`, checks Docker,
+uses published images when available, and automatically builds from the public
+source otherwise. It waits for every service to become healthy and then opens
+<http://localhost:8081>. Running the same command again is safe and preserves
+all documents, results, history, and downloaded models.
+
+The first start downloads the Qwen2.5 1.5B and 0.5B models. Allow several
+minutes and about 10 GB of free disk space for images, models, and runtime data.
+
 ## Application previews
 
 ### Process documents
@@ -41,21 +70,26 @@ metadata, and complete results. Documents and prompts remain inside Docker.
 
 </details>
 
-## Run as a Docker project
+## Run from an existing clone
 
-Docker Desktop must be running. Create the local environment file, download and
-verify the OCR models, then build and host the project:
+The same launchers use the current repository when invoked from a clone:
 
 ```powershell
-Copy-Item .env.example .env
-./scripts/Get-OcrModels.ps1
-docker compose up --detach --build --wait
+./scripts/Start-Papertrail.ps1
 ```
 
-The first start downloads the Qwen2.5 1.5B and 0.5B models into a named Docker volume.
-Open <http://localhost:8081>, select up to 10 PDFs, wait for processing, inspect
-each document and its AI analysis, then download the JSON results. The upload
-screen lists recent runs and can reopen completed results or resume active work.
+```bash
+./scripts/start-papertrail.sh
+```
+
+Use `-SourceBuild` in PowerShell or `--source` in Bash to skip the published
+image check and build locally. No `.env` file is required. Copy `.env.example`
+to `.env` only when you need to change ports, limits, Azure settings, model
+selection, or resource names.
+
+Open the portal, select up to 10 PDFs, wait for processing, inspect each
+document and its AI analysis, then download the JSON results. The upload screen
+lists recent runs and can reopen completed results or resume active work.
 
 Open <http://localhost:8081/technology> for the processing architecture,
 extraction decisions, component inventory, and runtime boundaries.
@@ -64,21 +98,27 @@ prompt sequence, output contract, normalization, and failure behavior.
 Open <http://localhost:8081/tokens> for persisted token usage, local model
 compute attribution, and the illustrative Azure AI cost comparison.
 
-The primary [compose.yaml](compose.yaml) file builds versioned images and runs
-the `papertrail` project. Use the image-only manifest after the images have
-been built locally or loaded from a registry:
+The launcher chooses between the two manifests automatically. To operate
+Compose directly, build the public source with [compose.yaml](compose.yaml):
+
+```powershell
+docker compose up --detach --build --wait
+```
+
+The image-only [compose.deploy.yaml](compose.deploy.yaml) manifest is available
+when the published packages are anonymously readable or Docker is already
+authenticated to GitHub Container Registry:
 
 ```powershell
 docker compose -f compose.deploy.yaml up --detach --wait
 ```
 
-Both modes use the same named volumes, so switching modes preserves uploaded
-PDFs, generated JSON, SQLite history, and Redis state. Edit `.env` to change
-the public port, image tags, processing limits, OCR settings, or resource names.
+Both modes use the `papertrail` project and the same named volumes, so switching
+modes preserves uploaded PDFs, generated JSON, SQLite history, Redis state, and
+local models.
 
-For a new Docker host, private GitHub Container Registry images, production
-secrets, upgrades, rollback, backups, and health checks, follow the
-[deployment guide](DEPLOYMENT.md).
+For production secrets, upgrades, rollback, backups, and health checks, follow
+the [deployment guide](DEPLOYMENT.md).
 
 Inspect the hosted project in Docker Desktop or from the command line:
 

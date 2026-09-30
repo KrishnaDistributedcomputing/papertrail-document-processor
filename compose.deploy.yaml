@@ -35,7 +35,7 @@ x-app-environment: &app-environment
 
 services:
   web:
-    image: ${PAPERTRAIL_WEB_IMAGE:-papertrail-web:1.6.0}
+    image: ${PAPERTRAIL_WEB_IMAGE:-ghcr.io/krishnadistributedcomputing/papertrail-document-processor-web:latest}
     ports:
       - "${WEB_PORT:-8081}:8080"
     depends_on:
@@ -51,7 +51,7 @@ services:
       - frontend
 
   api:
-    image: ${PAPERTRAIL_API_IMAGE:-papertrail-api:1.6.0}
+    image: ${PAPERTRAIL_API_IMAGE:-ghcr.io/krishnadistributedcomputing/papertrail-document-processor-api:latest}
     env_file:
       - path: .env
         required: false
@@ -75,7 +75,7 @@ services:
       - cloud-egress
 
   worker:
-    image: ${PAPERTRAIL_API_IMAGE:-papertrail-api:1.6.0}
+    image: ${PAPERTRAIL_API_IMAGE:-ghcr.io/krishnadistributedcomputing/papertrail-document-processor-api:latest}
     command: ["celery", "-A", "app.tasks:celery_app", "worker", "--loglevel=INFO", "--concurrency=1"]
     env_file:
       - path: .env
